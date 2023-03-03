@@ -10,6 +10,10 @@
 //m*n X n*p -> m*p
 //n*n -> n*1 = n*1
 //1*n X n*n -> 1*n*
+
+#define Print(matrix) std::cout << #matrix << '\n'; \
+std::cout << matrix << '\n';
+
 namespace math {
     template<typename Number>
     struct Traits{
@@ -26,8 +30,8 @@ namespace math {
 
     template<typename Number,
             Traits<Number> traits,
-            RandomSeed kRandomSeed = RandomSeed::No,
-            typename Distribution = std::uniform_int_distribution<Number>>
+            RandomSeed kRandomSeed,
+            typename Distribution>
     class Solver{
         static constexpr auto kMin = traits.kMin;
         static constexpr auto kMax = traits.kMax;
@@ -39,25 +43,25 @@ namespace math {
         double previous_lambda_;
         double lambda_;
         Matrix<> get_vector_;
-        Matrix<> eigen_vector_;
-        Matrix<> previous_eigen_vector_;
+        Matrix<> x_;
+        Matrix<> previous_x_;
         size_t count_iteration = 0;
         void OneStep(){
-            previous_eigen_vector_ = std::move(eigen_vector_);
-            auto v = Normalized(previous_eigen_vector_);
-            eigen_vector_ = A * v;
+            previous_x_ = std::move(x_);
+            auto v = Normalized(previous_x_);
+            x_ = A * v;
             previous_lambda_ = lambda_;
-            auto temp = v.Transposition() * eigen_vector_;
-            lambda_ = temp[0][0];
+            auto sigma = v.Transposition() * x_;
+            lambda_ = sigma[0][0];
             count_iteration++;
         }
         double CountEpsLambda(){
             return abs(previous_lambda_ - lambda_);
         }
         double CountEpsVector(){
-            double max = abs(previous_eigen_vector_[0][0] - eigen_vector_[0][0]);
+            double max = abs(previous_x_[0][0] - x_[0][0]);
             for (size_t index = 0; index < N_; index++){
-                double temp = abs(previous_eigen_vector_[index][0] - eigen_vector_[index][0]);
+                double temp = abs(previous_x_[index][0] - x_[index][0]);
                 if (temp > max) max = temp;
             }
             return max;
@@ -75,9 +79,9 @@ namespace math {
             && cur_eps_eigen_lambda > kEpsEigenLambda
             && count_iteration < kMaxCountIterations);
         }
-        //previous_lambda_, lambda_, get_vector_, eigen_vector_, previous_eigen_vector_, count_iteration
+        //previous_lambda_, lambda_, get_vector_, x_, previous_x_, count_iteration
         decltype(auto) GetAll(){
-            return std::tie(previous_lambda_, lambda_, get_vector_, eigen_vector_, previous_eigen_vector_, count_iteration);
+            return std::tie(previous_lambda_, lambda_, x_, previous_x_, count_iteration);
         }
         Solver(size_t N,
                Matrix<> matrix,
@@ -86,15 +90,18 @@ namespace math {
                 N_(N),
                 lambda_(lambda),
                 get_vector_(std::move(get_vector)),
-                eigen_vector_(N_, 1)
+                x_(N_, 1)
         {
             static_assert(kMin < kMax, "минимум должен быть меньше максимума");
             Distribution distribution_{kMin, kMax};
             std::mt19937 number_generator_{kRandomSeed == RandomSeed::Yes ? std::random_device{}() : 0};
             for (size_t index = 0; index < N_; index++){
-                eigen_vector_[index][0] = distribution_(number_generator_);
+                x_[index][0] = distribution_(number_generator_);
             }
-            A = matrix - get_vector * get_vector.Transposition() * lambda_;
+            auto temp = lambda_ * get_vector * get_vector.Transposition();
+            Print(temp);
+            A = matrix - temp;
+
         }
     };
 }

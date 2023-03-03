@@ -1,10 +1,12 @@
 #pragma once
 #include <utility>
+#include <cassert>
 #include <iostream>
 #include <vector>
 #include <type_traits>
 #include <algorithm>
 #include <cmath>
+#include <initializer_list>
 
 namespace math {
 
@@ -39,29 +41,57 @@ namespace math {
         size_t rows_count_;
         size_t columns_count_;
         std::vector<std::vector<Info>> m_cells;
-
         void AllocateCells(int, int);
 
     public:
         Matrix() : rows_count_(0), columns_count_(0) {}
-
         Matrix(size_t size){
             AllocateCells(size, size);
         }
         Matrix(const Matrix &);
 
         Matrix(int, int);
+        Matrix(std::initializer_list<std::initializer_list<Info>> list){
+            size_t i = 0;
 
-        Matrix(std::vector<std::vector<Info>> m_cells) :
-                rows_count_(m_cells.size()), m_cells(std::move(m_cells)) {
-            assert(rows_count_ != 0);
-            columns_count_ = m_cells[0].size();
-            for (auto &row: m_cells) {
-                assert(row.size() == columns_count_);
+            rows_count_ = list.size();
+            assert(list.size() != 0);
+            columns_count_ = list.begin()->size();
+            AllocateCells(rows_count_, columns_count_);
+            for (auto& row: list){
+                size_t j = 0;
+                for (auto& elem : row){
+                    m_cells[i][j] = elem;
+                    j++;
+                }
+                i++;
             }
         }
-
-        Matrix(int, int, Info *);
+        friend bool operator==(const Matrix& left, const Matrix& right){
+            if (left.nRows() != right.rows_count_ || left.nColumns() != right.columns_count_){
+                return false;
+            }
+            for (size_t i = 0; i < left.rows_count_; i++){
+                for (size_t j = 0; j < left.columns_count_; j++){
+                    if (left.m_cells[i][j] != right.m_cells[i][j]){
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+        bool operator!=(const Matrix& matrix){
+            return !(*this == matrix);
+        }
+        Matrix(int n_nRows, int n_nCols, Info *list) {
+            int k = 0;
+            AllocateCells(n_nRows, n_nCols);
+            for (int i = 0; i < n_nRows; i++)
+                for (int j = 0; j < n_nCols; j++) {
+                    m_cells[i][j] = list[k];
+                    k++;
+                }
+        }
 
         size_t nRows() const;
 
@@ -122,7 +152,7 @@ namespace math {
             Matrix<decltype(std::declval<LCell>() - std::declval<RCell>())> res(left.rows_count_, left.columns_count_);
             for (int i = 0; i < res.rows_count_; i++)
                 for (int j = 0; j < res.columns_count_; j++)
-                    res.m_cells[i][j] = left.m_cells[i][j] + right.m_cells[i][j];
+                    res.m_cells[i][j] = left.m_cells[i][j] - right.m_cells[i][j];
             return res;
         }
 
@@ -151,10 +181,13 @@ namespace math {
             if (left.columns_count_ != right.rows_count_) throw std::invalid_argument("loh");
             Matrix<decltype(std::declval<LCell>() * std::declval<RCell>())> res(left.rows_count_, right.columns_count_);
             {
-                for (int i = 0; i < left.rows_count_; i++) {
-                    for (int j = 0; j < right.columns_count_; j++) {
+                auto n = left.rows_count_;
+                auto m = left.columns_count_;
+                auto p = right.columns_count_;
+                for (int i = 0; i < n; i++) {
+                    for (int j = 0; j < p; j++) {
                         res.m_cells[i][j] = 0;
-                        for (int k = 0; k < left.columns_count_; k++) {
+                        for (int k = 0; k < m; k++) {
                             res.m_cells[i][j] += left.m_cells[i][k] * right.m_cells[k][j];
                         }
 
@@ -173,6 +206,20 @@ namespace math {
                 for (int i = 0; i < left.rows_count_; i++) {
                     for (int j = 0; j < left.columns_count_; j++) {
                         res.m_cells[i][j] = left.m_cells[i][j] * right;
+                    }
+                }
+            }
+            return res;
+        }
+
+        template<typename Left, typename Cell>
+        requires math::IsMultiplied<Left, Cell>
+        friend auto operator*(const Left &left, const Matrix<Cell> &right) {
+            Matrix<decltype(std::declval<Left>() * std::declval<Cell>())> res(right.rows_count_, right.columns_count_);
+            {
+                for (int i = 0; i < right.rows_count_; i++) {
+                    for (int j = 0; j < right.columns_count_; j++) {
+                        res.m_cells[i][j] = left * right.m_cells[i][j];
                     }
                 }
             }
@@ -210,17 +257,6 @@ namespace math {
         for (int i = 0; i < n_nRows; i++)
             for (int j = 0; j < n_nCols; j++)
                 m_cells[i][j] = 0;
-    }
-
-    template<typename Info>
-    Matrix<Info>::Matrix(int n_nRows, int n_nCols, Info *list) {
-        int k = 0;
-        AllocateCells(n_nRows, n_nCols);
-        for (int i = 0; i < n_nRows; i++)
-            for (int j = 0; j < n_nCols; j++) {
-                m_cells[i][j] = list[k];
-                k++;
-            }
     }
 
 
