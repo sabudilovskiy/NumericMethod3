@@ -75,9 +75,11 @@ namespace math {
                 cur_eps_eigen_lambda = CountEpsLambda();
                 cur_eps_vector = CountEpsVector();
             }
-            while (cur_eps_vector > kEpsEigenVector
-            && cur_eps_eigen_lambda > kEpsEigenLambda
-            && count_iteration < kMaxCountIterations);
+            while (
+                    cur_eps_vector > kEpsEigenVector &&
+                    cur_eps_eigen_lambda > kEpsEigenLambda &&
+                      count_iteration < kMaxCountIterations
+                    );
         }
         //previous_lambda_, lambda_, get_vector_, x_, previous_x_, count_iteration
         decltype(auto) GetAll(){

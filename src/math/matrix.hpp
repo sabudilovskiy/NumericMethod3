@@ -286,7 +286,7 @@ namespace math {
     Matrix<T> MakeIdentityMatrix(size_t size){
         Matrix<T> matrix(size);
         for (size_t i = 0; i < size; i++){
-            matrix[i][i] = 0;
+            matrix[i][i] = 1;
         }
         return matrix;
     }

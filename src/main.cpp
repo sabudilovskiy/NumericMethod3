@@ -54,16 +54,16 @@ void PrintSolution(Solution&& solution){
 //    return matrix;
 //}
 template <typename TMatrix>
-auto FindMax(TMatrix&& matrix) {
-    auto max = matrix[0][0];
+auto FindMaxLambdaIndex(TMatrix&& matrix) {
+    auto max = 0;
     std::optional<decltype(max)> max2;
     for (size_t i = 1; i < matrix.nRows(); i++)
-        if (auto& elem = matrix[i][i]; elem > max){
+        if (auto elem = abs(matrix[i][i]); elem > abs(matrix[max][max])){
             max2 = max;
-            max = elem;
+            max = i;
         }
-        else if (elem > max2 || !max2.has_value()){
-            max2 = elem;
+        else if (!max2.has_value() || elem > abs(matrix[*max2][*max2])){
+            max2 = i;
         }
     return std::make_tuple(max, max2.value());
 }
@@ -115,15 +115,19 @@ int main() {
         constexpr utils::Traits<double> traits{
                 .kMin = -range,
                 .kMax = range,
-                .kSize = 5
+                .kSize = 3
         };
         utils::Generator<double, traits, utils::RandomSeed::Yes> generator;
         generator.GenerateAll();
         const auto&[vector, house_m, diag_m, result_m] = generator.GetAll();
-        auto[expected_lambda, expected_lambda2] = FindMax(diag_m);
-        auto[max_vector, max2_vector] = FindMaxVector(house_m);
+        auto[expected_index, expected_2_index] = FindMaxLambdaIndex(diag_m);
+        auto [expected_lambda, expected_lambda2] = std::make_tuple(diag_m[expected_index][expected_index],
+                                                                   diag_m[expected_2_index][expected_2_index]);
+//        auto[max_vector, max2_vector] = FindMaxVector(house_m);
+        auto[max_vector, max2_vector] = std::make_tuple(expected_index, expected_2_index);
 //        Print(vector);
-//        Print(house_m);
+        Print(house_m);
+        Print(house_m * house_m.Transposition());
 //        Print(diag_m);
 //        Print(result_m);
 //        Print(expected_lambda);
@@ -139,7 +143,7 @@ int main() {
 
         math::Solver<
                 double, traits2,
-                math::RandomSeed::Yes,
+                math::RandomSeed::No,
                 std::uniform_real_distribution<>> solver(
                 traits.kSize,
                 result_m,
@@ -162,6 +166,7 @@ int main() {
         Print(counted_previous_lambda_);
         Print(counted_lambda_);
         Print(expected_lambda);
+        Print(expected_lambda2);
         std::cout << "count iteration: " << count_iteration;
         std::cin.get();
     }

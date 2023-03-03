@@ -40,16 +40,33 @@ namespace utils {
             vector_ = math::Normalized(vector_);
         }
         void GenerateHouseHolderMatrix(){
-            house_holder_matrix_ = math::MakeIdentityMatrix<>(kSize) - vector_ * vector_.Transposition() * 2;
+            auto E = math::MakeIdentityMatrix<>(kSize);
+            auto F = 2 * vector_ * vector_.Transposition();
+            Print(F);
+            house_holder_matrix_ = E - 2 * vector_ * vector_.Transposition();
         }
         void GenerateDiagonalMatrix(){
             diagonal_matrix_ = math::Matrix<>{kSize};
+            double eps = 0.0001;
+
             for (size_t i = 0; i < kSize; i++){
-                diagonal_matrix_[i][i] = GenerateNumber();
+                auto number = GenerateNumber();
+                for (size_t j = i + 1; j > 0; j--){
+                    while (abs(number) - abs(diagonal_matrix_[j - 1][j - 1]) < eps){
+                        number = GenerateNumber();
+                    }
+                }
+                diagonal_matrix_[i][i] = number;
             }
         }
         void GenerateResultMatrix(){
-            result_matrix_ = house_holder_matrix_ * diagonal_matrix_ * house_holder_matrix_.Transposition();
+            Print(house_holder_matrix_);
+            Print(diagonal_matrix_);
+            Print(house_holder_matrix_.Transposition());
+            auto left =  house_holder_matrix_ * diagonal_matrix_;
+            Print(left);
+            result_matrix_ = left * house_holder_matrix_.Transposition();
+            Print(result_matrix_);
         }
         Number GenerateNumber() {
             Number number = distribution_(number_generator_);
