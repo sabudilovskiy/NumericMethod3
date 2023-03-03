@@ -8,82 +8,78 @@
 #include <random>
 #include <array>
 #include <functional>
+#include "math/matrix.hpp"
 
-template<typename Number>
-struct Traits{
-    size_t kSize;
-    Number kMin;
-    Number kMax;
-};
+namespace utils {
+    template<typename Number>
+    struct Traits{
+        Number kMin;
+        Number kMax;
+        size_t kSize;
+    };
 
-enum struct RandomSeed{
-    Yes, No
-};
+    enum struct RandomSeed{
+        Yes, No
+    };
 
-template<typename Number,
-        Traits<Number> traits,
-        RandomSeed kRandomSeed = RandomSeed::No,
-        typename Distribution = std::uniform_int_distribution<Number>>
-class Generator final{
-public:
-    static constexpr inline auto kSize = traits.kSize;
-    static constexpr inline auto kMin = traits.kMin;
-    static constexpr inline auto kMax = traits.kMax;
-    using Row = std::array<Number,kSize>;
-    using Matrix = std::array<Row, kSize>;
-    using FreeMembersColumn = std::array<Number, kSize>;
-    using Solution = std::array<Number, kSize>;
-    void Generate(){
-        GenerateMatrix();
-        GenerateSolution();
-        CountFreeMembers();
-    }
-    template<class Checker>
-    Generator(Checker&& checker) : checker_(std::forward<Checker>(checker)){
-        static_assert(kMin < kMax, "минимум должен быть больше максимума");
-    }
-    auto GetResult() const {
-        return std::tie(matrix_, free_members_column_, solution_);
-    }
-
-protected:
-    Number GenerateNumber(){
-        auto number = distribution_(number_generator_);
-        while (number == 0) number = distribution_(number_generator_);
-        return number;
-    }
-    void GenerateMatrix(){
-        for (size_t i = 0; i < kSize; ++i){
-            for (size_t j = 0; j < kSize; ++j){
-                if (checker_(i, j, kSize)){
-                    matrix_[i][j] = GenerateNumber();
-                }
-                else matrix_[i][j] = 0;
+    template<typename Number,
+            Traits<Number> traits,
+            RandomSeed kRandomSeed = RandomSeed::No,
+            typename Distribution = std::uniform_real_distribution<Number>>
+    class Generator final {
+    public:
+        static constexpr inline auto kSize = traits.kSize;
+        static constexpr inline auto kMin = traits.kMin;
+        static constexpr inline auto kMax = traits.kMax;
+    protected:
+        void GenerateVector() {
+            vector_ = math::Matrix<>(kSize, 1);
+            for (size_t i = 0; i < kSize; i++){
+                vector_[i][0] = GenerateNumber();
+            }
+            vector_ = math::Normalized(vector_);
+        }
+        void GenerateHouseHolderMatrix(){
+            house_holder_matrix_ = math::MakeIdentityMatrix<>(kSize) - vector_ * vector_.Transposition() * 2;
+        }
+        void GenerateDiagonalMatrix(){
+            diagonal_matrix_ = math::Matrix<>{kSize};
+            for (size_t i = 0; i < kSize; i++){
+                diagonal_matrix_[i][i] = GenerateNumber();
             }
         }
-    }
-    void GenerateSolution(){
-        for (auto& elem: solution_){
-            elem = GenerateNumber();
+        void GenerateResultMatrix(){
+            result_matrix_ = house_holder_matrix_ * diagonal_matrix_ * house_holder_matrix_.Transposition();
         }
-    }
-    void CountFreeMembers(){
-        for (size_t i = 0; i < kSize; ++i){
-            const Row& row = matrix_[i];
-            Number sum = {};
-            for (size_t j = 0; j < kSize; ++j){
-                sum += row[j] * solution_[j];
+        Number GenerateNumber() {
+            Number number = distribution_(number_generator_);
+            while (number == Number{}){
+                number = distribution_(number_generator_);
             }
-            free_members_column_[i] = sum;
+            return number;
         }
-    }
-private:
-    Matrix matrix_;
-    FreeMembersColumn free_members_column_;
-    Solution solution_;
-    std::function<bool(size_t i , size_t j, size_t size)> checker_;
-    Distribution distribution_{kMin, kMax};
-    std::mt19937 number_generator_{kRandomSeed == RandomSeed::Yes ? std::random_device{}() : 0};
-};
+    public:
+        Generator() {
+            static_assert(kMin < kMax, "минимум должен быть меньше максимума");
+        }
+        void GenerateAll(){
+            GenerateVector();
+            GenerateHouseHolderMatrix();
+            GenerateDiagonalMatrix();
+            GenerateResultMatrix();
+        }
+        //vector, Householder matrix,diagonal matrix, result matrix
+        decltype(auto) GetAll() const {
+            return std::tie(vector_, house_holder_matrix_, diagonal_matrix_, result_matrix_);
+        }
+    private:
+        math::Matrix<> vector_;
+        math::Matrix<> house_holder_matrix_;
+        math::Matrix<> diagonal_matrix_;
+        math::Matrix<> result_matrix_;
+        Distribution distribution_{kMin, kMax};
+        std::mt19937 number_generator_{kRandomSeed == RandomSeed::Yes ? std::random_device{}() : 0};
+    };
+}
 
 #endif //NUMERICMETHODS1_GENERATOR_HPP
